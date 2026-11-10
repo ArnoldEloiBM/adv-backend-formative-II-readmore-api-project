@@ -1,6 +1,26 @@
 
+const mongoose = require('mongoose');
 const Book = require('../models/Book');
 const Author = require('../models/Author');
+
+const sendBookError = (res, error) => {
+  if (error.code === 11000) {
+    return res.status(409).json({
+      status: 'error',
+      message: 'This author already has a book with this title'
+    });
+  }
+
+  const failedPaths = error.name === 'ValidationError' ? Object.keys(error.errors) : [];
+  const breaksBusinessRule = failedPaths.some((path) =>
+    path === 'price' || path === 'publishedYear'
+  );
+
+  return res.status(breaksBusinessRule ? 422 : 400).json({
+    status: 'error',
+    message: error.message
+  });
+};
 
 
 // Create a new book
@@ -33,27 +53,20 @@ const createBook = async (req, res) => {
       status: 'success',
       data: book
     });
-  
   } catch (error) {
-    if (error.code === 11000) {
-      return res.status(409).json({
-        status: 'error',
-        message: 'This author already has a book with this title'
-      });
-    }
-
-    res.status(400).json({
-      status: 'error',
-      message: error.message
-    });
+    sendBookError(res, error);
   }
-
 };
 
 // Get all books with dynamic search, filtering and sorting
 const getAllBooks = async (req, res) => {
   try {
     const filter = {};
+
+    // Pagination
+    const page = Math.max(1, parseInt(req.query.page) || 1);
+    const limit = Math.max(1, parseInt(req.query.limit) || 10);
+    const skip = (page - 1) * limit;
 
     // Search by book title or genre
     if (req.query.search) {
@@ -90,6 +103,18 @@ const getAllBooks = async (req, res) => {
         ...filter.price,
         $lte: Number(req.query.maxPrice)
       };
+    }
+
+    // Filter by author id
+    if (req.query.author !== undefined) {
+      if (!mongoose.isValidObjectId(req.query.author)) {
+        return res.status(400).json({
+          status: 'error',
+          message: 'author must be a valid id'
+        });
+      }
+
+      filter.author = req.query.author;
     }
 
     // Filter by publication year
@@ -133,12 +158,19 @@ const getAllBooks = async (req, res) => {
 
     const sortOrder = req.query.order === 'desc' ? -1 : 1;
 
+    const total = await Book.countDocuments(filter);
+
     const books = await Book.find(filter)
       .populate('author')
-      .sort({ [sortField]: sortOrder });
+      .sort({ [sortField]: sortOrder })
+      .skip(skip)
+      .limit(limit);
 
     res.status(200).json({
       status: 'success',
+      page,
+      limit,
+      total,
       results: books.length,
       data: books
     });
@@ -178,6 +210,24 @@ const getBookById = async (req, res) => {
 // Update a book
 const updateBook = async (req, res) => {
   try {
+    if (req.body.author !== undefined) {
+      if (!req.body.author) {
+        return res.status(400).json({
+          status: 'error',
+          message: 'Author ID is required'
+        });
+      }
+
+      const author = await Author.findById(req.body.author);
+
+      if (!author) {
+        return res.status(400).json({
+          status: 'error',
+          message: 'The specified author does not exist'
+        });
+      }
+    }
+
     const book = await Book.findByIdAndUpdate(
       req.params.id,
       req.body,
@@ -198,21 +248,9 @@ const updateBook = async (req, res) => {
       status: 'success',
       data: book
     });
-  
   } catch (error) {
-    if (error.code === 11000) {
-      return res.status(409).json({
-        status: 'error',
-        message: 'This author already has a book with this title'
-      });
-    }
-
-    res.status(400).json({
-      status: 'error',
-      message: error.message
-    });
+    sendBookError(res, error);
   }
-
 };
 
 // Delete a book

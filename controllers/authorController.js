@@ -133,10 +133,62 @@ const deleteAuthor = async (req, res) => {
   }
 };
 
+
+// Get statistics for an author's books
+const getAuthorStatistics = async (req, res) => {
+  try {
+    // Check whether the author exists
+    const author = await Author.findById(req.params.id);
+
+    if (!author) {
+      return res.status(404).json({
+        status: 'error',
+        message: 'Author not found'
+      });
+    }
+
+    const books = await Book.find({ author: author._id }).select('title price');
+
+    if (books.length === 0) {
+      return res.status(200).json({
+        status: 'success',
+        author: author.name,
+        bookCount: 0,
+        averagePrice: 0,
+        cheapestBook: null,
+        mostExpensiveBook: null
+      });
+    }
+
+    const totalPrice = books.reduce((sum, book) => sum + book.price, 0);
+    const cheapest = books.reduce((lowest, book) =>
+      book.price < lowest.price ? book : lowest
+    );
+    const mostExpensive = books.reduce((highest, book) =>
+      book.price > highest.price ? book : highest
+    );
+
+    res.status(200).json({
+      status: 'success',
+      author: author.name,
+      bookCount: books.length,
+      averagePrice: Math.round((totalPrice / books.length) * 100) / 100,
+      cheapestBook: cheapest.title,
+      mostExpensiveBook: mostExpensive.title
+    });
+  } catch (error) {
+    res.status(400).json({
+      status: 'error',
+      message: error.message
+    });
+  }
+};
+
 module.exports = {
   createAuthor,
   getAllAuthors,
   getAuthorById,
+  getAuthorStatistics,
   updateAuthor,
   deleteAuthor
 };
