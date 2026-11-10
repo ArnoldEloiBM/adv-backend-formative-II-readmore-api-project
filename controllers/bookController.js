@@ -50,11 +50,92 @@ const createBook = async (req, res) => {
 
 };
 
-
-// Get all books
+// Get all books with dynamic search, filtering and sorting
 const getAllBooks = async (req, res) => {
   try {
-    const books = await Book.find().populate('author');
+    const filter = {};
+
+    // Search by book title or genre
+    if (req.query.search) {
+      const searchTerm = req.query.search.replace(
+        /[.*+?^${}()|[\]\\]/g,
+        '\\$&'
+      );
+
+      filter.$or = [
+        { title: { $regex: searchTerm, $options: 'i' } },
+        { genre: { $regex: searchTerm, $options: 'i' } }
+      ];
+    }
+
+    // Filter by genre
+    if (req.query.genre) {
+      filter.genre = {
+        $regex: req.query.genre,
+        $options: 'i'
+      };
+    }
+
+    // Filter by minimum price
+    if (req.query.minPrice !== undefined) {
+      filter.price = {
+        ...filter.price,
+        $gte: Number(req.query.minPrice)
+      };
+    }
+
+    // Filter by maximum price
+    if (req.query.maxPrice !== undefined) {
+      filter.price = {
+        ...filter.price,
+        $lte: Number(req.query.maxPrice)
+      };
+    }
+
+    // Filter by publication year
+    if (req.query.publishedYear !== undefined) {
+      filter.publishedYear = Number(req.query.publishedYear);
+    }
+
+    // Validate numeric filters
+    const numericFilters = ['minPrice', 'maxPrice', 'publishedYear'];
+
+    for (const field of numericFilters) {
+      if (
+        req.query[field] !== undefined &&
+        (req.query[field].trim() === '' ||
+          !Number.isFinite(Number(req.query[field])))
+      ) {
+        return res.status(400).json({
+          status: 'error',
+          message: `${field} must be a valid number`
+        });
+      }
+    }
+
+    // Check that minimum price is not greater than maximum price
+    if (
+      req.query.minPrice !== undefined &&
+      req.query.maxPrice !== undefined &&
+      Number(req.query.minPrice) > Number(req.query.maxPrice)
+    ) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Minimum price cannot exceed maximum price'
+      });
+    }
+
+    // Sorting
+    const allowedSortFields = ['title', 'price', 'publishedYear'];
+    const sortField = allowedSortFields.includes(req.query.sort)
+      ? req.query.sort
+      : 'title';
+
+    const sortOrder = req.query.order === 'desc' ? -1 : 1;
+
+    const books = await Book.find(filter)
+      .populate('author')
+      .sort({ [sortField]: sortOrder });
 
     res.status(200).json({
       status: 'success',
@@ -68,6 +149,7 @@ const getAllBooks = async (req, res) => {
     });
   }
 };
+
 
 // Get one book by ID
 const getBookById = async (req, res) => {
