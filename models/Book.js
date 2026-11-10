@@ -11,14 +11,22 @@ const bookSchema = new mongoose.Schema({
     type: String,
     required: true,
     trim: true
-  },
+  },  
   price: {
     type: Number,
-    required: true
+    required: true,
+    min: [0.01, 'Price must be greater than zero']
   },
   publishedYear: {
     type: Number,
-    required: true
+    required: true,
+    min: [1000, 'Publication year must be at least 1000'],
+    max: [new Date().getFullYear(), 'Publication year cannot be in the future'],
+    validate: {
+      validator: Number.isInteger,
+      message: 'Publication year must be a whole number'
+    },
+
   },
   author: {
     type: mongoose.Schema.Types.ObjectId,
