@@ -2,9 +2,29 @@
 const Book = require('../models/Book');
 const Author = require('../models/Author');
 
+
 // Create a new book
 const createBook = async (req, res) => {
   try {
+    // Check whether the author ID was provided
+    if (!req.body.author) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Author ID is required'
+      });
+    }
+
+    // Check whether the author exists
+    const author = await Author.findById(req.body.author);
+
+    if (!author) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'The specified author does not exist'
+      });
+    }
+
+    // Create the book
     const book = await Book.create(req.body);
 
     await book.populate('author');
@@ -13,13 +33,23 @@ const createBook = async (req, res) => {
       status: 'success',
       data: book
     });
+  
   } catch (error) {
+    if (error.code === 11000) {
+      return res.status(409).json({
+        status: 'error',
+        message: 'This author already has a book with this title'
+      });
+    }
+
     res.status(400).json({
       status: 'error',
       message: error.message
     });
   }
+
 };
+
 
 // Get all books
 const getAllBooks = async (req, res) => {
@@ -86,12 +116,21 @@ const updateBook = async (req, res) => {
       status: 'success',
       data: book
     });
+  
   } catch (error) {
+    if (error.code === 11000) {
+      return res.status(409).json({
+        status: 'error',
+        message: 'This author already has a book with this title'
+      });
+    }
+
     res.status(400).json({
       status: 'error',
       message: error.message
     });
   }
+
 };
 
 // Delete a book

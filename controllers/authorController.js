@@ -1,5 +1,6 @@
 
 const Author = require('../models/Author');
+const Book = require('../models/Book');
 
 // Create a new author
 const createAuthor = async (req, res) => {
@@ -91,10 +92,12 @@ const updateAuthor = async (req, res) => {
   }
 };
 
+
 // Delete an author
 const deleteAuthor = async (req, res) => {
   try {
-    const author = await Author.findByIdAndDelete(req.params.id);
+    // Check whether the author exists
+    const author = await Author.findById(req.params.id);
 
     if (!author) {
       return res.status(404).json({
@@ -102,6 +105,21 @@ const deleteAuthor = async (req, res) => {
         message: 'Author not found'
       });
     }
+
+    // Check whether the author has any books
+    const books = await Book.exists({
+      author: req.params.id
+    });
+
+    if (books) {
+      return res.status(409).json({
+        status: 'error',
+        message: 'Cannot delete author because they still have books'
+      });
+    }
+
+    // Delete the author if no books are associated
+    await Author.findByIdAndDelete(req.params.id);
 
     res.status(200).json({
       status: 'success',

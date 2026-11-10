@@ -27,6 +27,15 @@ const bookSchema = new mongoose.Schema({
   }
 });
 
+// Prevent duplicate book titles for the same author
+bookSchema.index(
+  { title: 1, author: 1 },
+  {
+    unique: true,
+    collation: { locale: 'en', strength: 2 }
+  }
+);
+
 const Book = mongoose.model('Book', bookSchema);
 
 module.exports = Book;
