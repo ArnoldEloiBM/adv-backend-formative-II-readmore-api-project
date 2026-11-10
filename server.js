@@ -8,6 +8,12 @@ const app = express();
 // Middleware to parse JSON request bodies
 app.use(express.json());
 
+const authorRoutes = require('./routes/authorRoutes');
+const bookRoutes = require('./routes/bookRoutes');
+
+app.use('/authors', authorRoutes);
+app.use('/books', bookRoutes);
+
 // Health check route
 app.get('/', (req, res) => {
   res.status(200).json({
