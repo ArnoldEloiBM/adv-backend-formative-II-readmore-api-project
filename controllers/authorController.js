@@ -1,4 +1,4 @@
-
+// controllers/authorController.js
 const Author = require('../models/Author');
 const Book = require('../models/Book');
 

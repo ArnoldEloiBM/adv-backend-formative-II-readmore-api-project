@@ -198,3 +198,5 @@ Submit a **a Github repository link** containing your project code. The reposito
 
 Good luck — build it one endpoint at a time, and test each in your API client before moving on.
 ---
+
+# Video link: https://drive.google.com/file/d/1bDxWVp6npuMkPqu0duILD8kDBZh9_XZa/view?usp=sharing
